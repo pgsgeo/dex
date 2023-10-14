@@ -294,13 +294,22 @@ func toStorageClient(c Client) storage.Client {
 
 // Claims is a mirrored struct from storage with JSON struct tags.
 type Claims struct {
-	UserID            string   `json:"userID"`
-	Username          string   `json:"username"`
-	PreferredUsername string   `json:"preferredUsername"`
-	Email             string   `json:"email"`
-	EmailVerified     bool     `json:"emailVerified"`
-	Groups            []string `json:"groups,omitempty"`
+	UserID            string                   `json:"userID"`
+	Username          string                   `json:"username"`
+	PreferredUsername string                   `json:"preferredUsername"`
+	Email             string                   `json:"email"`
+	EmailVerified     bool                     `json:"emailVerified"`
+	Groups            []string                 `json:"groups,omitempty"`
+	Organizations     []map[string]interface{} `json:"organizations,omitempty"`
+	Relations         []map[string]interface{} `json:"relations,omitempty"`
+	Name              map[string]interface{}   `json:"name,omitempty"`
 }
+
+const (
+	mapKeyFamilyName = "familyName"
+	mapKeyFullName   = "fullName"
+	mapKeyGivenName  = "givenName"
+)
 
 func fromStorageClaims(i storage.Claims) Claims {
 	return Claims{
@@ -310,6 +319,13 @@ func fromStorageClaims(i storage.Claims) Claims {
 		Email:             i.Email,
 		EmailVerified:     i.EmailVerified,
 		Groups:            i.Groups,
+		Organizations:     i.Organizations,
+		Relations:         i.Relations,
+		Name: map[string]interface{}{
+			mapKeyFamilyName: i.Name.FamilyName,
+			mapKeyFullName:   i.Name.FullName,
+			mapKeyGivenName:  i.Name.GivenName,
+		},
 	}
 }
 
@@ -321,6 +337,13 @@ func toStorageClaims(i Claims) storage.Claims {
 		Email:             i.Email,
 		EmailVerified:     i.EmailVerified,
 		Groups:            i.Groups,
+		Organizations:     i.Organizations,
+		Relations:         i.Relations,
+		Name: storage.Name{
+			FamilyName: i.Name[mapKeyFamilyName].(string),
+			FullName:   i.Name[mapKeyFullName].(string),
+			GivenName:  i.Name[mapKeyGivenName].(string),
+		},
 	}
 }
 

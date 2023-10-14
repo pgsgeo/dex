@@ -31,11 +31,21 @@ type Identity struct {
 
 	Groups []string
 
+	Organizations []map[string]interface{}
+	Relations     []map[string]interface{}
+	Name          Name
+
 	// ConnectorData holds data used by the connector for subsequent requests after initial
 	// authentication, such as access tokens for upstream provides.
 	//
 	// This data is never shared with end users, OAuth clients, or through the API.
 	ConnectorData []byte
+}
+
+type Name struct {
+	GivenName  string
+	FamilyName string
+	FullName   string
 }
 
 // PasswordConnector is an interface implemented by connectors which take a

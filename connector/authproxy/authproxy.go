@@ -4,6 +4,7 @@
 package authproxy
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,9 +20,12 @@ import (
 // Headers retrieved to fetch user's email and group can be configured
 // with userHeader and groupHeader.
 type Config struct {
-	UserHeader  string   `json:"userHeader"`
-	GroupHeader string   `json:"groupHeader"`
-	Groups      []string `json:"staticGroups"`
+	UserHeader          string   `json:"userHeader"`
+	GroupHeader         string   `json:"groupHeader"`
+	NameHeader          string   `json:"nameHeader"`
+	OrganizationsHeader string   `json:"organizationsHeader"`
+	RelationsHeader     string   `json:"relationsHeader"`
+	Groups              []string `json:"staticGroups"`
 }
 
 // Open returns an authentication strategy which requires no user interaction.
@@ -34,18 +38,33 @@ func (c *Config) Open(id string, logger log.Logger) (connector.Connector, error)
 	if groupHeader == "" {
 		groupHeader = "X-Remote-Group"
 	}
+	nameHeader := c.NameHeader
+	if nameHeader == "" {
+		nameHeader = "X-Remote-Name"
+	}
+	organizationsHeader := c.OrganizationsHeader
+	if organizationsHeader == "" {
+		organizationsHeader = "X-Remote-Organizations"
+	}
+	relationsHeader := c.RelationsHeader
+	if relationsHeader == "" {
+		relationsHeader = "X-Remote-Relations"
+	}
 
-	return &callback{userHeader: userHeader, groupHeader: groupHeader, logger: logger, pathSuffix: "/" + id, groups: c.Groups}, nil
+	return &callback{userHeader: userHeader, groupHeader: groupHeader, organizationsHeader: organizationsHeader, relationsHeader: relationsHeader, nameHeader: nameHeader, logger: logger, pathSuffix: "/" + id, groups: c.Groups}, nil
 }
 
 // Callback is a connector which returns an identity with the HTTP header
 // X-Remote-User as verified email.
 type callback struct {
-	userHeader  string
-	groupHeader string
-	groups      []string
-	logger      log.Logger
-	pathSuffix  string
+	userHeader          string
+	groupHeader         string
+	nameHeader          string
+	organizationsHeader string
+	relationsHeader     string
+	groups              []string
+	logger              log.Logger
+	pathSuffix          string
 }
 
 // LoginURL returns the URL to redirect the user to login with.
@@ -76,10 +95,39 @@ func (m *callback) HandleCallback(s connector.Scopes, r *http.Request) (connecto
 		}
 		groups = append(splitheaderGroup, groups...)
 	}
+
+	var remoteName map[string]string
+	if name := r.Header.Get(m.nameHeader); name != "" {
+		if err := json.Unmarshal([]byte(name), &remoteName); err != nil {
+			return connector.Identity{}, fmt.Errorf("unmarshal name: %v", err)
+		}
+	}
+
+	var remoteOrganizations []map[string]interface{}
+	if orgs := r.Header.Get(m.organizationsHeader); orgs != "" {
+		if err := json.Unmarshal([]byte(orgs), &remoteOrganizations); err != nil {
+			return connector.Identity{}, fmt.Errorf("unmarshal organizations: %v", err)
+		}
+	}
+	var remoteRelations []map[string]interface{}
+	if relations := r.Header.Get(m.relationsHeader); relations != "" {
+		if err := json.Unmarshal([]byte(relations), &remoteRelations); err != nil {
+			return connector.Identity{}, fmt.Errorf("unmarshal relations: %v", err)
+		}
+	}
+
 	return connector.Identity{
 		UserID:        remoteUser, // TODO: figure out if this is a bad ID value.
 		Email:         remoteUser,
 		EmailVerified: true,
 		Groups:        groups,
+
+		Name: connector.Name{
+			GivenName:  remoteName["givenName"],
+			FamilyName: remoteName["familyName"],
+			FullName:   remoteName["fullName"],
+		},
+		Organizations: remoteOrganizations,
+		Relations:     remoteRelations,
 	}, nil
 }

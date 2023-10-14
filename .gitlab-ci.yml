@@ -1,0 +1,35 @@
+default:
+  tags:
+    - cloud_large
+stages:
+  - build
+
+build:
+  variables:
+    REGISTRY_IMAGE: $CI_REGISTRY_IMAGE
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+  script:
+    - |
+      cat <<EOF >/kaniko/.docker/config.json
+      {
+        "auths": {
+          "${CI_REGISTRY}": {
+            "username": "${CI_REGISTRY_USER}",
+            "password": "${CI_REGISTRY_PASSWORD}"
+          }
+        }
+      }
+      EOF
+    - |
+      DESTINATIONS="--destination=$REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      DESTINATIONS="${DESTINATIONS} --destination=$REGISTRY_IMAGE:$CI_COMMIT_SHA"
+      if [[ ! -z "$CI_COMMIT_TAG" ]]; then
+        DESTINATIONS="${DESTINATIONS} --destination=$REGISTRY_IMAGE:$CI_COMMIT_TAG"
+      fi
+
+        # --cache=true \
+        # --cache-repo=${REGISTRY_IMAGE}/cache \
+      echo -n $DESTINATIONS | xargs /kaniko/executor --context . \
+        --dockerfile ./Dockerfile

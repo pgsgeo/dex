@@ -93,6 +93,7 @@ func tokenErr(w http.ResponseWriter, typ, description string, statusCode int) er
 	return nil
 }
 
+// nolint
 const (
 	errInvalidRequest          = "invalid_request"
 	errUnauthorizedClient      = "unauthorized_client"
@@ -291,8 +292,15 @@ type idTokenClaims struct {
 
 	Groups []string `json:"groups,omitempty"`
 
-	Name              string `json:"name,omitempty"`
+	Name       string `json:"name"`
+	GivenName  string `json:"given_name"`
+	FamilyName string `json:"family_name"`
+
+	// Name              map[string]interface{} `json:"name_google,omitempty"`
 	PreferredUsername string `json:"preferred_username,omitempty"`
+
+	Organizations []map[string]interface{} `json:"organizations,omitempty"`
+	Relations     []map[string]interface{} `json:"relations,omitempty"`
 
 	FederatedIDClaims *federatedIDClaims `json:"federated_claims,omitempty"`
 }
@@ -370,8 +378,12 @@ func (s *Server) newIDToken(clientID string, claims storage.Claims, scopes []str
 		case scope == scopeGroups:
 			tok.Groups = claims.Groups
 		case scope == scopeProfile:
-			tok.Name = claims.Username
+			tok.Name = claims.Name.FullName
+			tok.FamilyName = claims.Name.FamilyName
+			tok.GivenName = claims.Name.GivenName
 			tok.PreferredUsername = claims.PreferredUsername
+			tok.Organizations = claims.Organizations
+			tok.Relations = claims.Relations
 		case scope == scopeFederatedID:
 			tok.FederatedIDClaims = &federatedIDClaims{
 				ConnectorID: connID,
@@ -415,7 +427,6 @@ func (s *Server) newIDToken(clientID string, claims storage.Claims, scopes []str
 	if err != nil {
 		return "", expiry, fmt.Errorf("could not serialize claims: %v", err)
 	}
-
 	if idToken, err = signPayload(signingKey, signingAlg, payload); err != nil {
 		return "", expiry, fmt.Errorf("failed to sign payload: %v", err)
 	}

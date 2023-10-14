@@ -502,6 +502,13 @@ func (s *Server) finalizeLogin(identity connector.Identity, authReq storage.Auth
 		Email:             identity.Email,
 		EmailVerified:     identity.EmailVerified,
 		Groups:            identity.Groups,
+		Name: storage.Name{
+			GivenName:  identity.Name.GivenName,
+			FamilyName: identity.Name.FamilyName,
+			FullName:   identity.Name.FullName,
+		},
+		Organizations: identity.Organizations,
+		Relations:     identity.Relations,
 	}
 
 	updater := func(a storage.AuthRequest) (storage.AuthRequest, error) {
@@ -1185,6 +1192,13 @@ func (s *Server) handlePasswordGrant(w http.ResponseWriter, r *http.Request, cli
 		Email:             identity.Email,
 		EmailVerified:     identity.EmailVerified,
 		Groups:            identity.Groups,
+		Name: storage.Name{
+			GivenName:  identity.Name.GivenName,
+			FamilyName: identity.Name.FamilyName,
+			FullName:   identity.Name.FullName,
+		},
+		Organizations: identity.Organizations,
+		Relations:     identity.Relations,
 	}
 
 	accessToken, _, err := s.newAccessToken(client.ID, claims, scopes, nonce, connID)
